@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistem Kas Kecil dan Reimbursement Karyawan ELCA SWEETBOX">
+  <title>ELCA SWEETBOX | Kas Kecil & Reimbursement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">E</div>
+        <div><strong>ELCA</strong><span>SWEETBOX</span></div>
+      </div>
+      <div class="sidebar-label">Menu utama</div>
+      <nav class="main-nav" aria-label="Navigasi utama">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon">⌂</span>Dashboard</button>
+        <button class="nav-item" data-page="employees"><span class="nav-icon">♙</span>Data Karyawan</button>
+        <button class="nav-item" data-page="categories"><span class="nav-icon">▦</span>Kategori Pengeluaran</button>
+        <button class="nav-item" data-page="reimbursements"><span class="nav-icon">↗</span>Pengajuan Reimbursement</button>
+        <button class="nav-item" data-page="approvals"><span class="nav-icon">✓</span>Persetujuan Reimbursement</button>
+        <button class="nav-item" data-page="cash"><span class="nav-icon">▤</span>Kas Kecil</button>
+        <button class="nav-item" data-page="reports"><span class="nav-icon">▥</span>Laporan</button>
+        <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>Pengaturan Sederhana</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span>Mode demo aktif</span></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-menu" aria-label="Buka menu">☰</button>
+        <div class="breadcrumb"><span>Workspace</span><b>/</b><strong id="breadcrumb-title">Dashboard</strong></div>
+        <div class="topbar-actions">
+          <div class="role-picker"><label for="active-role">Masuk sebagai</label><select id="active-role"><option value="admin">Admin / Akuntan</option><option value="manager">Pemilik / Manager</option><option value="employee">Karyawan</option></select></div>
+          <div class="avatar">AR</div>
+        </div>
+      </header>
+
+      <div class="page-container">
+        <section class="page-view active" id="page-dashboard">
+          <div class="page-heading"><div><p class="eyebrow">Jumat, 25 September 2026</p><h1>Selamat pagi, Admin <span>✦</span></h1><p class="muted">Pantau arus kas dan reimbursement ELCA SWEETBOX hari ini.</p></div><button class="primary-btn" data-action="open-reimbursement"><span>＋</span> Ajukan reimbursement</button></div>
+          <div class="hero-card"><div><p class="eyebrow light">Saldo kas kecil saat ini</p><h2 id="hero-balance">Rp 0</h2><p class="hero-note"><span class="trend">↗</span> Keuangan usaha tetap terpantau dengan baik</p></div><div class="hero-illustration"><span>✿</span><span>▱</span><span>✦</span></div></div>
+          <div class="metrics-grid">
+            <article class="metric-card"><div class="metric-icon peach">↗</div><div><span>Total pemasukan</span><strong id="metric-income">Rp 0</strong><small class="positive">Bulan ini</small></div></article>
+            <article class="metric-card"><div class="metric-icon rose">↘</div><div><span>Total pengeluaran</span><strong id="metric-expense">Rp 0</strong><small>Bulan ini</small></div></article>
+            <article class="metric-card"><div class="metric-icon lilac">▤</div><div><span>Total pengajuan</span><strong id="metric-submissions">0</strong><small>Semua pengajuan</small></div></article>
+            <article class="metric-card"><div class="metric-icon mint">✓</div><div><span>Sudah dibayar</span><strong id="metric-paid">0</strong><small>Reimbursement</small></div></article>
+          </div>
+          <div class="dashboard-lower"><section class="panel chart-panel"><div class="panel-heading"><div><h3>Ringkasan pengeluaran</h3><p class="muted">Transaksi kas kecil terbaru</p></div><button class="text-btn" data-page-link="cash">Lihat semua →</button></div><div class="mini-chart" id="mini-chart"><div class="chart-bars"><i style="height:42%"></i><i style="height:67%"></i><i style="height:49%"></i><i style="height:80%"></i><i style="height:61%"></i><i style="height:94%"></i><i style="height:73%"></i></div><div class="chart-labels"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div></div></section><section class="panel status-panel"><div class="panel-heading"><div><h3>Status reimbursement</h3><p class="muted">Perlu perhatian Anda</p></div></div><div class="status-list"><div><span class="status-bullet waiting"></span><span>Menunggu verifikasi</span><strong id="metric-verification">0</strong></div><div><span class="status-bullet approval"></span><span>Menunggu persetujuan</span><strong id="metric-approval">0</strong></div><div><span class="status-bullet paid"></span><span>Sudah dibayar</span><strong id="status-paid">0</strong></div></div></section></div>
+          <section class="panel table-panel"><div class="panel-heading"><div><h3>Transaksi terbaru</h3><p class="muted">Aktivitas kas kecil terakhir</p></div><button class="text-btn" data-page-link="reports">Buka laporan →</button></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Uraian</th><th>Kategori</th><th>Jenis</th><th>Jumlah</th></tr></thead><tbody id="recent-transactions"></tbody></table></div></section>
+        </section>
+
+        <section class="page-view" id="page-employees"><div class="page-heading"><div><p class="eyebrow">Master data</p><h1>Data Karyawan</h1><p class="muted">Kelola tim yang bekerja bersama ELCA SWEETBOX.</p></div><button class="primary-btn" data-modal="employee-modal">＋ Tambah karyawan</button></div><section class="panel table-panel"><div class="panel-heading"><h3>Daftar karyawan</h3><span class="count-badge" id="employee-count">0 orang</span></div><div class="table-wrap"><table><thead><tr><th>Kode</th><th>Nama karyawan</th><th>Jabatan</th><th>Nomor telepon</th><th>Status</th></tr></thead><tbody id="employee-table"></tbody></table></div></section></section>
+
+        <section class="page-view" id="page-categories"><div class="page-heading"><div><p class="eyebrow">Master data</p><h1>Kategori Pengeluaran</h1><p class="muted">Susun kategori untuk pencatatan transaksi yang konsisten.</p></div><button class="primary-btn" data-modal="category-modal">＋ Tambah kategori</button></div><section class="category-grid" id="category-list"></section></section>
+
+        <section class="page-view" id="page-reimbursements"><div class="page-heading"><div><p class="eyebrow">Cash advance</p><h1>Pengajuan Reimbursement</h1><p class="muted">Catat pengeluaran karyawan dan pantau statusnya.</p></div><button class="primary-btn" data-modal="reimbursement-modal">＋ Buat pengajuan</button></div><section class="panel table-panel"><div class="filter-row"><div class="tabs"><button class="tab active" data-filter="all">Semua</button><button class="tab" data-filter="Menunggu Verifikasi">Verifikasi</button><button class="tab" data-filter="Menunggu Persetujuan">Persetujuan</button><button class="tab" data-filter="Sudah Dibayar">Selesai</button></div></div><div class="table-wrap"><table><thead><tr><th>Pengajuan</th><th>Karyawan</th><th>Kategori</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="reimbursement-table"></tbody></table></div></section></section>
+
+        <section class="page-view" id="page-approvals"><div class="page-heading"><div><p class="eyebrow">Manager review</p><h1>Persetujuan Reimbursement</h1><p class="muted">Periksa pengajuan yang telah diverifikasi admin.</p></div></div><section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>Pengajuan</th><th>Karyawan</th><th>Uraian</th><th>Jumlah</th><th>Status</th><th>Keputusan</th></tr></thead><tbody id="approval-table"></tbody></table></div></section></section>
+
+        <section class="page-view" id="page-cash"><div class="page-heading"><div><p class="eyebrow">Cash management</p><h1>Kas Kecil</h1><p class="muted">Semua arus uang masuk dan keluar tercatat di sini.</p></div><button class="primary-btn" data-modal="cash-modal">＋ Catat transaksi</button></div><div class="cash-summary"><div><span>Saldo tersedia</span><strong id="cash-balance">Rp 0</strong></div><div><span>Total pemasukan</span><strong id="cash-income">Rp 0</strong></div><div><span>Total pengeluaran</span><strong id="cash-expense">Rp 0</strong></div></div><section class="panel table-panel"><div class="panel-heading"><h3>Riwayat transaksi</h3></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Uraian</th><th>Jumlah</th></tr></thead><tbody id="cash-table"></tbody></table></div></section></section>
+
+        <section class="page-view" id="page-reports"><div class="page-heading"><div><p class="eyebrow">Insight keuangan</p><h1>Laporan Kas Kecil</h1><p class="muted">Ringkasan transaksi untuk membantu pengambilan keputusan.</p></div><button class="secondary-btn" id="export-report">↓ Unduh CSV</button></div><div class="report-grid"><section class="panel report-total"><span>Nilai transaksi</span><strong id="report-total">Rp 0</strong><p class="muted">Akumulasi pemasukan dan pengeluaran</p></section><section class="panel report-categories"><div class="panel-heading"><h3>Pengeluaran per kategori</h3></div><div id="category-report"></div></section></div><section class="panel table-panel"><div class="panel-heading"><h3>Rincian laporan</h3></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Uraian</th><th>Kategori</th><th>Jenis</th><th>Jumlah</th></tr></thead><tbody id="report-table"></tbody></table></div></section></section>
+
+        <section class="page-view" id="page-settings"><div class="page-heading"><div><p class="eyebrow">Preferensi aplikasi</p><h1>Pengaturan Sederhana</h1><p class="muted">Sesuaikan identitas dan koneksi data aplikasi.</p></div></div><section class="settings-layout"><section class="panel settings-card"><h3>Profil usaha</h3><label>Nama usaha<input id="business-name" value="ELCA SWEETBOX"></label><label>Alamat usaha<textarea id="business-address" rows="3">Jl. Manis No. 12, Kota Kue</textarea></label><button class="primary-btn" id="save-settings">Simpan pengaturan</button></section><section class="panel settings-card"><h3>Koneksi Supabase</h3><p class="muted">Kredensial hanya disimpan di browser ini. Gunakan anon key, bukan service role key.</p><label>Supabase URL<input id="supabase-url" type="url" placeholder="https://project.supabase.co"></label><label>Supabase anon key<input id="supabase-key" type="password" placeholder="eyJhbGciOi..."></label><button class="secondary-btn" id="save-supabase">Simpan koneksi</button><small class="connection-note" id="connection-note">Belum terhubung. Mode demo menggunakan localStorage.</small></section></section></section>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="employee-modal"><div class="modal"><button class="modal-close" data-close>×</button><p class="eyebrow">Master data</p><h2>Tambah karyawan</h2><form id="employee-form"><label>Kode karyawan<input name="kode_karyawan" required placeholder="ELC-004"></label><label>Nama karyawan<input name="nama_karyawan" required></label><label>Jabatan<input name="jabatan" required placeholder="Staff Produksi"></label><label>Nomor telepon<input name="nomor_telepon" required type="tel"></label><label>Status karyawan<select name="status_karyawan"><option>Aktif</option><option>Nonaktif</option></select></label><button class="primary-btn full" type="submit">Simpan karyawan</button></form></div></div>
+  <div class="modal-backdrop" id="category-modal"><div class="modal"><button class="modal-close" data-close>×</button><p class="eyebrow">Master data</p><h2>Tambah kategori</h2><form id="category-form"><label>Nama kategori<input name="nama_kategori" required placeholder="Contoh: Operasional"></label><label>Keterangan<textarea name="keterangan" rows="3"></textarea></label><button class="primary-btn full" type="submit">Simpan kategori</button></form></div></div>
+  <div class="modal-backdrop" id="reimbursement-modal"><div class="modal"><button class="modal-close" data-close>×</button><p class="eyebrow">Pengajuan baru</p><h2>Ajukan reimbursement</h2><form id="reimbursement-form"><label>Nama karyawan<select name="id_karyawan" id="reimbursement-employee" required></select></label><label>Kategori pengeluaran<select name="id_kategori" id="reimbursement-category" required></select></label><div class="form-row"><label>Tanggal pengeluaran<input name="tanggal_pengeluaran" type="date" required></label><label>Jumlah<input name="jumlah" type="number" min="1" required placeholder="150000"></label></div><label>Uraian pengeluaran<textarea name="uraian_pengeluaran" rows="3" required placeholder="Jelaskan keperluan pengeluaran..."></textarea></label><label>Bukti pengeluaran<input name="bukti_pengeluaran" type="text" required placeholder="Nama file / nomor nota"></label><button class="primary-btn full" type="submit">Simpan pengajuan</button></form></div></div>
+  <div class="modal-backdrop" id="cash-modal"><div class="modal"><button class="modal-close" data-close>×</button><p class="eyebrow">Kas kecil</p><h2>Catat transaksi</h2><form id="cash-form"><div class="form-row"><label>Tanggal transaksi<input name="tanggal_transaksi" type="date" required></label><label>Jenis transaksi<select name="jenis_transaksi"><option>Pemasukan</option><option>Pengeluaran</option></select></label></div><label>Kategori<select name="id_kategori" id="cash-category" required></select></label><label>Uraian<input name="uraian" required></label><label>Jumlah<input name="jumlah" type="number" min="1" required placeholder="500000"></label><button class="primary-btn full" type="submit">Simpan transaksi</button></form></div></div>
+  <div class="toast" id="toast"></div>
+</body>
+</html>
