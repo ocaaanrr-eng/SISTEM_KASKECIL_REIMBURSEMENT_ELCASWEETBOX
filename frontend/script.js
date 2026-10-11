@@ -7,9 +7,11 @@ let activeFilter = 'all';
 let supabaseClient = null;
 
 const seedData = {
+  users: [],
   employees: [{ id_karyawan: 'emp-1', kode_karyawan: 'ELC-001', nama_karyawan: 'Rani Amalia', jabatan: 'Staff Produksi', nomor_telepon: '081234567890', status_karyawan: 'Aktif' }, { id_karyawan: 'emp-2', kode_karyawan: 'ELC-002', nama_karyawan: 'Dimas Prakoso', jabatan: 'Kurir', nomor_telepon: '082112223333', status_karyawan: 'Aktif' }, { id_karyawan: 'emp-3', kode_karyawan: 'ELC-003', nama_karyawan: 'Salsa Putri', jabatan: 'Admin Toko', nomor_telepon: '085677889900', status_karyawan: 'Aktif' }],
   categories: [{ id_kategori: 'cat-1', nama_kategori: 'Bahan kemasan', keterangan: 'Box, paper bag, stiker, dan kebutuhan kemasan' }, { id_kategori: 'cat-2', nama_kategori: 'Gas', keterangan: 'Gas LPG dan kebutuhan dapur' }, { id_kategori: 'cat-3', nama_kategori: 'Transportasi', keterangan: 'Ongkos kirim dan perjalanan operasional' }, { id_kategori: 'cat-4', nama_kategori: 'Alat tulis', keterangan: 'ATK dan perlengkapan administrasi' }, { id_kategori: 'cat-5', nama_kategori: 'Kebersihan', keterangan: 'Sabun, tisu, dan perlengkapan kebersihan' }, { id_kategori: 'cat-6', nama_kategori: 'Perawatan peralatan', keterangan: 'Servis oven, mixer, dan peralatan bakery' }, { id_kategori: 'cat-7', nama_kategori: 'Lain-lain', keterangan: 'Pengeluaran operasional lainnya' }],
   reimbursements: [{ id_reimbursement: 'reim-1', id_karyawan: 'emp-1', id_kategori: 'cat-1', tanggal_pengajuan: '2026-09-22', tanggal_pengeluaran: '2026-09-21', uraian_pengeluaran: 'Pembelian paper bag ukuran medium', jumlah: 185000, bukti_pengeluaran: 'nota-paperbag.jpg', status: 'Menunggu Verifikasi' }, { id_reimbursement: 'reim-2', id_karyawan: 'emp-2', id_kategori: 'cat-3', tanggal_pengajuan: '2026-09-20', tanggal_pengeluaran: '2026-09-19', uraian_pengeluaran: 'Ongkos kirim pesanan area kota', jumlah: 120000, bukti_pengeluaran: 'nota-kurir.jpg', status: 'Menunggu Persetujuan' }, { id_reimbursement: 'reim-3', id_karyawan: 'emp-3', id_kategori: 'cat-5', tanggal_pengajuan: '2026-09-18', tanggal_pengeluaran: '2026-09-17', uraian_pengeluaran: 'Belanja sabun cuci dan tisu dapur', jumlah: 95000, bukti_pengeluaran: 'nota-kebersihan.jpg', status: 'Sudah Dibayar' }],
+  approvals: [],
   payments: [{ id_pembayaran: 'pay-1', id_reimbursement: 'reim-3', tanggal_pembayaran: '2026-09-18', jumlah_dibayar: 95000, metode_pembayaran: 'Tunai', keterangan: 'Pembayaran reimbursement' }],
   transactions: [{ id_kas: 'cash-1', id_kategori: 'cat-1', tanggal_transaksi: '2026-09-24', jenis_transaksi: 'Pengeluaran', uraian: 'Pembelian box brownies', jumlah: 450000 }, { id_kas: 'cash-2', id_kategori: 'cat-3', tanggal_transaksi: '2026-09-23', jenis_transaksi: 'Pengeluaran', uraian: 'Ongkos kirim pelanggan', jumlah: 180000 }, { id_kas: 'cash-3', id_kategori: 'cat-4', tanggal_transaksi: '2026-09-22', jenis_transaksi: 'Pengeluaran', uraian: 'Cetak invoice dan label', jumlah: 85000 }, { id_kas: 'cash-4', id_kategori: 'cat-5', id_reimbursement: 'reim-3', tanggal_transaksi: '2026-09-18', jenis_transaksi: 'Pengeluaran', uraian: 'Pembayaran reimbursement - Belanja sabun cuci dan tisu dapur', jumlah: 95000 }, { id_kas: 'cash-5', id_kategori: 'cat-7', tanggal_transaksi: '2026-09-20', jenis_transaksi: 'Pemasukan', uraian: 'Pengisian saldo kas kecil', jumlah: 2500000 }]
 };
@@ -20,23 +22,31 @@ function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)
 function uid(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function esc(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[char])); }
 function formatDate(value) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'; }
+function sortByDateDescending(rows, field) { return [...rows].sort((first, second) => String(second[field] || '').localeCompare(String(first[field] || ''))); }
 function categoryName(data, id) { return data.categories.find(item => item.id_kategori === id)?.nama_kategori || 'Tanpa kategori'; }
 function employeeName(data, id) { return data.employees.find(item => item.id_karyawan === id)?.nama_karyawan || 'Karyawan'; }
+function currentUserId(data) { const role = { admin: 'Admin', manager: 'Manager', employee: 'Karyawan' }[document.getElementById('active-role')?.value]; return data.users?.find(item => item.role === role)?.id_user || null; }
+function userName(data, id) { return data.users?.find(item => item.id_user === id)?.nama_user || 'Pengguna'; }
 function statusClass(status) { if (status === 'Sudah Dibayar') return 'status-paid'; if (status === 'Menunggu Persetujuan') return 'status-approval'; if (status === 'Ditolak') return 'status-rejected'; return 'status-waiting'; }
 function notify(message, isError = false) { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `toast show${isError ? ' error' : ''}`; setTimeout(() => { toast.className = 'toast'; }, 2800); }
 
 async function loadRemoteData() {
   if (!supabaseClient) return;
-  const tables = await Promise.all(['karyawan', 'kategori_pengeluaran', 'reimbursement', 'pembayaran', 'kas_kecil'].map(table => supabaseClient.from(table).select('*')));
-  const failed = tables.find(result => result.error);
+  const tableNames = ['users', 'karyawan', 'kategori_pengeluaran', 'reimbursement', 'approval', 'pembayaran', 'kas_kecil'];
+  const results = await Promise.all(tableNames.map(table => supabaseClient.from(table).select('*')));
+  const failed = results.find(result => result.error);
   if (failed) throw failed.error;
+  const remote = Object.fromEntries(tableNames.map((table, index) => [table, results[index].data || []]));
   const data = getData();
-  const hasRemoteBusinessData = tables[2].data?.length || tables[3].data?.length || tables[4].data?.length;
+  const hasRemoteBusinessData = remote.reimbursement.length || remote.pembayaran.length || remote.kas_kecil.length;
   if (!hasRemoteBusinessData) {
     const localEmployees = data.employees;
     const localCategories = data.categories;
-    data.employees = tables[0].data || data.employees;
-    data.categories = tables[1].data || data.categories;
+    data.users = remote.users;
+    data.employees = remote.karyawan;
+    data.categories = remote.kategori_pengeluaran;
+    data.approvals = remote.approval;
+    data.payments = remote.pembayaran;
     const employeeIds = Object.fromEntries(localEmployees.map((item, index) => [item.id_karyawan, data.employees.find(remote => remote.kode_karyawan === item.kode_karyawan)?.id_karyawan || data.employees[index]?.id_karyawan || item.id_karyawan]));
     const categoryIds = Object.fromEntries(localCategories.map((item, index) => [item.id_kategori, data.categories.find(remote => remote.nama_kategori === item.nama_kategori)?.id_kategori || data.categories[index]?.id_kategori || item.id_kategori]));
     if (!data.reimbursements.length && !data.transactions.length) {
@@ -53,11 +63,13 @@ async function loadRemoteData() {
     renderAll();
     return;
   }
-  data.employees = tables[0].data || [];
-  data.categories = tables[1].data || [];
-  data.reimbursements = tables[2].data || [];
-  data.payments = tables[3].data || [];
-  data.transactions = tables[4].data || [];
+  data.users = remote.users;
+  data.employees = remote.karyawan;
+  data.categories = remote.kategori_pengeluaran;
+  data.reimbursements = remote.reimbursement;
+  data.approvals = remote.approval;
+  data.payments = remote.pembayaran;
+  data.transactions = remote.kas_kecil;
   saveData(data);
   renderAll();
 }
@@ -81,17 +93,29 @@ function renderDashboard(data) {
   document.getElementById('metric-verification').textContent = counts('Menunggu Verifikasi');
   document.getElementById('metric-approval').textContent = counts('Menunggu Persetujuan');
   document.getElementById('status-paid').textContent = counts('Sudah Dibayar');
-  renderTransactionRows('recent-transactions', data, data.transactions.slice(0, 5));
+  renderTransactionRows('recent-transactions', data, sortByDateDescending(data.transactions, 'tanggal_transaksi').slice(0, 5));
 }
 
-function renderTransactionRows(targetId, data, rows) { const target = document.getElementById(targetId); if (!target) return; target.innerHTML = rows.length ? rows.map(item => `<tr><td>${formatDate(item.tanggal_transaksi)}</td><td><strong>${esc(item.uraian)}</strong></td><td>${esc(categoryName(data, item.id_kategori))}</td><td class="${item.jenis_transaksi === 'Pemasukan' ? 'type-income' : 'type-expense'}">${item.jenis_transaksi}</td><td><strong>${money.format(item.jumlah)}</strong></td></tr>`).join('') : '<tr><td class="empty-state" colspan="5">Belum ada transaksi.</td></tr>'; }
-function renderEmployees(data) { const target = document.getElementById('employee-table'); document.getElementById('employee-count').textContent = `${data.employees.length} orang`; target.innerHTML = data.employees.map(item => `<tr><td><strong>${esc(item.kode_karyawan)}</strong></td><td>${esc(item.nama_karyawan)}</td><td>${esc(item.jabatan)}</td><td>${esc(item.nomor_telepon)}</td><td><span class="status-pill status-paid">${esc(item.status_karyawan)}</span></td><td><button class="action-btn" data-edit-type="employee" data-id="${item.id_karyawan}">Edit</button><button class="action-btn reject" data-delete-type="employee" data-id="${item.id_karyawan}">Hapus</button></td></tr>`).join(''); }
-function renderCategories(data) { document.getElementById('category-list').innerHTML = data.categories.map((item, index) => `<article class="category-card"><div class="category-number">0${index + 1}</div><h3>${esc(item.nama_kategori)}</h3><p>${esc(item.keterangan || 'Belum ada keterangan')}</p><button class="action-btn" data-edit-type="category" data-id="${item.id_kategori}">Edit</button><button class="action-btn reject" data-delete-type="category" data-id="${item.id_kategori}">Hapus</button></article>`).join(''); }
+function renderTransactionRows(targetId, data, rows) { const target = document.getElementById(targetId); if (!target) return; const sortedRows = sortByDateDescending(rows, 'tanggal_transaksi'); target.innerHTML = sortedRows.length ? sortedRows.map(item => `<tr><td>${formatDate(item.tanggal_transaksi)}</td><td><strong>${esc(item.uraian)}</strong></td><td>${esc(categoryName(data, item.id_kategori))}</td><td class="${item.jenis_transaksi === 'Pemasukan' ? 'type-income' : 'type-expense'}">${item.jenis_transaksi}</td><td><strong>${money.format(item.jumlah)}</strong></td></tr>`).join('') : '<tr><td class="empty-state" colspan="5">Belum ada transaksi.</td></tr>'; }
+function renderEmployees(data) { const target = document.getElementById('employee-table'); document.getElementById('employee-count').textContent = `${data.employees.length} orang`; target.innerHTML = [...data.employees].sort((first, second) => first.kode_karyawan.localeCompare(second.kode_karyawan, 'id', { numeric: true })).map(item => `<tr><td><strong>${esc(item.kode_karyawan)}</strong></td><td>${esc(item.nama_karyawan)}</td><td>${esc(item.jabatan)}</td><td>${esc(item.nomor_telepon)}</td><td><span class="status-pill status-paid">${esc(item.status_karyawan)}</span></td><td><button class="action-btn" data-edit-type="employee" data-id="${item.id_karyawan}">Edit</button><button class="action-btn reject" data-delete-type="employee" data-id="${item.id_karyawan}">Hapus</button></td></tr>`).join(''); }
+function renderCategories(data) { document.getElementById('category-list').innerHTML = [...data.categories].sort((first, second) => first.nama_kategori.localeCompare(second.nama_kategori, 'id')).map((item, index) => `<article class="category-card"><div class="category-number">0${index + 1}</div><h3>${esc(item.nama_kategori)}</h3><p>${esc(item.keterangan || 'Belum ada keterangan')}</p><button class="action-btn" data-edit-type="category" data-id="${item.id_kategori}">Edit</button><button class="action-btn reject" data-delete-type="category" data-id="${item.id_kategori}">Hapus</button></article>`).join(''); }
 function renderOptions(data) { const employeeOptions = data.employees.filter(item => item.status_karyawan === 'Aktif').map(item => `<option value="${item.id_karyawan}">${esc(item.nama_karyawan)}</option>`).join(''); const categoryOptions = data.categories.map(item => `<option value="${item.id_kategori}">${esc(item.nama_kategori)}</option>`).join(''); document.getElementById('reimbursement-employee').innerHTML = employeeOptions; document.getElementById('reimbursement-category').innerHTML = categoryOptions; document.getElementById('cash-category').innerHTML = categoryOptions; }
-function renderReimbursements(data) { const rows = data.reimbursements.filter(item => activeFilter === 'all' || item.status === activeFilter); document.getElementById('reimbursement-table').innerHTML = rows.length ? rows.map(item => `<tr><td><strong>${formatDate(item.tanggal_pengajuan)}</strong><small class="muted">${esc(item.uraian_pengeluaran)}</small></td><td>${esc(employeeName(data, item.id_karyawan))}</td><td>${esc(categoryName(data, item.id_kategori))}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><span class="status-pill ${statusClass(item.status)}">${esc(item.status)}</span></td><td>${reimbursementActions(item)}</td></tr>`).join('') : '<tr><td class="empty-state" colspan="6">Tidak ada pengajuan pada filter ini.</td></tr>'; }
+function renderReimbursements(data) { const rows = data.reimbursements.filter(item => activeFilter === 'all' || item.status === activeFilter).sort((first, second) => second.tanggal_pengajuan.localeCompare(first.tanggal_pengajuan)); document.getElementById('reimbursement-table').innerHTML = rows.length ? rows.map(item => `<tr><td><strong>${formatDate(item.tanggal_pengajuan)}</strong><small class="muted">${esc(item.uraian_pengeluaran)}</small></td><td>${esc(employeeName(data, item.id_karyawan))}</td><td>${esc(categoryName(data, item.id_kategori))}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><span class="status-pill ${statusClass(item.status)}">${esc(item.status)}</span></td><td>${reimbursementActions(item)}</td></tr>`).join('') : '<tr><td class="empty-state" colspan="6">Tidak ada pengajuan pada filter ini.</td></tr>'; }
 function reimbursementActions(item) { if (item.status === 'Sudah Dibayar') return '<span class="muted">Selesai</span>'; const review = item.status === 'Menunggu Verifikasi' ? `<button class="action-btn approve" data-reim-action="verify" data-id="${item.id_reimbursement}">Verifikasi</button><button class="action-btn reject" data-reim-action="reject" data-id="${item.id_reimbursement}">Tolak</button>` : item.status === 'Disetujui' ? `<button class="action-btn approve" data-reim-action="pay" data-id="${item.id_reimbursement}">Bayar</button>` : ''; return `${review}<button class="action-btn" data-edit-type="reimbursement" data-id="${item.id_reimbursement}">Edit</button><button class="action-btn reject" data-delete-type="reimbursement" data-id="${item.id_reimbursement}">Hapus</button>`; }
-function renderApprovals(data) { const rows = data.reimbursements.filter(item => item.status === 'Menunggu Persetujuan' || item.status === 'Disetujui'); document.getElementById('approval-table').innerHTML = rows.length ? rows.map(item => `<tr><td>${formatDate(item.tanggal_pengajuan)}</td><td>${esc(employeeName(data, item.id_karyawan))}</td><td>${esc(item.uraian_pengeluaran)}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><span class="status-pill ${statusClass(item.status)}">${esc(item.status)}</span></td><td>${item.status === 'Menunggu Persetujuan' ? `<button class="action-btn approve" data-reim-action="approve" data-id="${item.id_reimbursement}">Setujui</button><button class="action-btn reject" data-reim-action="reject" data-id="${item.id_reimbursement}">Tolak</button>` : '<span class="muted">Menunggu pembayaran</span>'}</td></tr>`).join('') : '<tr><td class="empty-state" colspan="6">Tidak ada pengajuan yang perlu disetujui.</td></tr>'; }
-function renderCash(data) { const income = data.transactions.filter(item => item.jenis_transaksi === 'Pemasukan').reduce((sum, item) => sum + Number(item.jumlah), 0); const expense = data.transactions.filter(item => item.jenis_transaksi === 'Pengeluaran').reduce((sum, item) => sum + Number(item.jumlah), 0); document.getElementById('cash-balance').textContent = money.format(income - expense); document.getElementById('cash-income').textContent = money.format(income); document.getElementById('cash-expense').textContent = money.format(expense); const target = document.getElementById('cash-table'); target.innerHTML = data.transactions.length ? data.transactions.map(item => `<tr><td>${formatDate(item.tanggal_transaksi)}</td><td class="${item.jenis_transaksi === 'Pemasukan' ? 'type-income' : 'type-expense'}">${item.jenis_transaksi}</td><td>${esc(categoryName(data, item.id_kategori))}</td><td>${esc(item.uraian)}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><button class="action-btn" data-edit-type="cash" data-id="${item.id_kas}">Edit</button><button class="action-btn reject" data-delete-type="cash" data-id="${item.id_kas}">Hapus</button></td></tr>`).join('') : '<tr><td class="empty-state" colspan="6">Belum ada transaksi.</td></tr>'; }
+function renderApprovals(data) {
+  const pending = data.reimbursements.filter(item => item.status === 'Menunggu Persetujuan' || item.status === 'Disetujui');
+  const history = (data.approvals || []).filter(approval => !pending.some(item => item.id_reimbursement === approval.id_reimbursement));
+  const rows = [
+    ...pending.map(item => ({ date: item.tanggal_pengajuan, html: `<tr><td>${formatDate(item.tanggal_pengajuan)}</td><td>${esc(employeeName(data, item.id_karyawan))}</td><td>${esc(item.uraian_pengeluaran)}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><span class="status-pill ${statusClass(item.status)}">${esc(item.status)}</span></td><td>${item.status === 'Menunggu Persetujuan' ? `<button class="action-btn approve" data-reim-action="approve" data-id="${item.id_reimbursement}">Setujui</button><button class="action-btn reject" data-reim-action="reject" data-id="${item.id_reimbursement}">Tolak</button>` : '<span class="muted">Menunggu pembayaran</span>'}</td></tr>` })),
+    ...history.map(item => {
+      const reimbursement = data.reimbursements.find(row => row.id_reimbursement === item.id_reimbursement);
+      const date = item.tanggal_approval?.slice(0, 10) || '';
+      return { date, html: `<tr><td>${formatDate(date)}</td><td>${esc(reimbursement ? employeeName(data, reimbursement.id_karyawan) : '-')}</td><td>${esc(reimbursement?.uraian_pengeluaran || 'Pengajuan tidak ditemukan')}<small class="muted">${esc(item.catatan || '')}</small></td><td>${reimbursement ? money.format(reimbursement.jumlah) : '-'}</td><td><span class="status-pill ${item.keputusan === 'Disetujui' ? 'status-paid' : 'status-rejected'}">${esc(item.keputusan)}</span></td><td>${esc(userName(data, item.id_user))}</td></tr>` };
+    })
+  ].sort((first, second) => second.date.localeCompare(first.date));
+  document.getElementById('approval-table').innerHTML = rows.length ? rows.map(row => row.html).join('') : '<tr><td class="empty-state" colspan="6">Tidak ada pengajuan atau riwayat persetujuan.</td></tr>';
+}
+function renderCash(data) { const income = data.transactions.filter(item => item.jenis_transaksi === 'Pemasukan').reduce((sum, item) => sum + Number(item.jumlah), 0); const expense = data.transactions.filter(item => item.jenis_transaksi === 'Pengeluaran').reduce((sum, item) => sum + Number(item.jumlah), 0); document.getElementById('cash-balance').textContent = money.format(income - expense); document.getElementById('cash-income').textContent = money.format(income); document.getElementById('cash-expense').textContent = money.format(expense); const target = document.getElementById('cash-table'); const transactions = sortByDateDescending(data.transactions, 'tanggal_transaksi'); target.innerHTML = transactions.length ? transactions.map(item => `<tr><td>${formatDate(item.tanggal_transaksi)}</td><td class="${item.jenis_transaksi === 'Pemasukan' ? 'type-income' : 'type-expense'}">${item.jenis_transaksi}</td><td>${esc(categoryName(data, item.id_kategori))}</td><td>${esc(item.uraian)}</td><td><strong>${money.format(item.jumlah)}</strong></td><td><button class="action-btn" data-edit-type="cash" data-id="${item.id_kas}">Edit</button><button class="action-btn reject" data-delete-type="cash" data-id="${item.id_kas}">Hapus</button></td></tr>`).join('') : '<tr><td class="empty-state" colspan="6">Belum ada transaksi.</td></tr>'; }
 function renderReports(data) { const total = data.transactions.reduce((sum, item) => sum + Number(item.jumlah), 0); document.getElementById('report-total').textContent = money.format(total); const grouped = data.transactions.filter(item => item.jenis_transaksi === 'Pengeluaran').reduce((all, item) => { const name = categoryName(data, item.id_kategori); all[name] = (all[name] || 0) + Number(item.jumlah); return all; }, {}); const max = Math.max(...Object.values(grouped), 1); document.getElementById('category-report').innerHTML = Object.entries(grouped).length ? Object.entries(grouped).sort((a, b) => b[1] - a[1]).map(([name, amount]) => `<div class="bar-row"><div class="bar-meta"><span>${esc(name)}</span><strong>${money.format(amount)}</strong></div><div class="bar-track"><div class="bar-fill" style="width:${(amount / max) * 100}%"></div></div></div>`).join('') : '<p class="muted">Belum ada pengeluaran.</p>'; renderTransactionRows('report-table', data, data.transactions); }
 function renderAll() { const data = getData(); renderDashboard(data); renderEmployees(data); renderCategories(data); renderOptions(data); renderReimbursements(data); renderApprovals(data); renderCash(data); renderReports(data); }
 
@@ -106,17 +130,78 @@ function navigate(page) { document.querySelectorAll('.page-view').forEach(item =
 function ensureEditModal() { if (document.getElementById('edit-modal')) return; const modal = document.createElement('div'); modal.id = 'edit-modal'; modal.className = 'modal-backdrop'; modal.innerHTML = '<div class="modal"><button class="modal-close" data-close>×</button><p class="eyebrow">Edit data</p><h2 id="edit-modal-title">Edit data</h2><form id="edit-form"></form></div>'; document.body.appendChild(modal); modal.addEventListener('click', event => { if (event.target === modal) closeModals(); }); modal.querySelector('[data-close]').addEventListener('click', closeModals); }
 function editFields(type, item, data) { if (type === 'employee') return `<label>Kode karyawan<input name="kode_karyawan" required value="${esc(item.kode_karyawan)}"></label><label>Nama karyawan<input name="nama_karyawan" required value="${esc(item.nama_karyawan)}"></label><label>Jabatan<input name="jabatan" required value="${esc(item.jabatan)}"></label><label>Nomor telepon<input name="nomor_telepon" required value="${esc(item.nomor_telepon)}"></label><label>Status karyawan<select name="status_karyawan"><option ${item.status_karyawan === 'Aktif' ? 'selected' : ''}>Aktif</option><option ${item.status_karyawan === 'Nonaktif' ? 'selected' : ''}>Nonaktif</option></select></label>`; if (type === 'category') return `<label>Nama kategori<input name="nama_kategori" required value="${esc(item.nama_kategori)}"></label><label>Keterangan<textarea name="keterangan" rows="3">${esc(item.keterangan || '')}</textarea></label>`; if (type === 'reimbursement') return `<label>Tanggal pengeluaran<input name="tanggal_pengeluaran" type="date" required value="${item.tanggal_pengeluaran}"></label><label>Kategori<select name="id_kategori">${data.categories.map(category => `<option value="${category.id_kategori}" ${category.id_kategori === item.id_kategori ? 'selected' : ''}>${esc(category.nama_kategori)}</option>`).join('')}</select></label><label>Uraian pengeluaran<textarea name="uraian_pengeluaran" rows="3" required>${esc(item.uraian_pengeluaran)}</textarea></label><label>Jumlah<input name="jumlah" type="number" min="1" required value="${item.jumlah}"></label><label>Bukti pengeluaran<input name="bukti_pengeluaran" required value="${esc(item.bukti_pengeluaran)}"></label>`; return `<div class="form-row"><label>Tanggal transaksi<input name="tanggal_transaksi" type="date" required value="${item.tanggal_transaksi}"></label><label>Jenis transaksi<select name="jenis_transaksi"><option ${item.jenis_transaksi === 'Pemasukan' ? 'selected' : ''}>Pemasukan</option><option ${item.jenis_transaksi === 'Pengeluaran' ? 'selected' : ''}>Pengeluaran</option></select></label></div><label>Kategori<select name="id_kategori">${data.categories.map(category => `<option value="${category.id_kategori}" ${category.id_kategori === item.id_kategori ? 'selected' : ''}>${esc(category.nama_kategori)}</option>`).join('')}</select></label><label>Uraian<input name="uraian" required value="${esc(item.uraian)}"></label><label>Jumlah<input name="jumlah" type="number" min="1" required value="${item.jumlah}"></label>`; }
 function openEdit(type, id) { const data = getData(); const collection = type === 'employee' ? data.employees : type === 'category' ? data.categories : type === 'reimbursement' ? data.reimbursements : data.transactions; const idColumn = type === 'employee' ? 'id_karyawan' : type === 'category' ? 'id_kategori' : type === 'reimbursement' ? 'id_reimbursement' : 'id_kas'; const item = collection.find(row => row[idColumn] === id); if (!item) return; ensureEditModal(); document.getElementById('edit-modal-title').textContent = `Edit ${type === 'employee' ? 'karyawan' : type === 'category' ? 'kategori' : type === 'reimbursement' ? 'reimbursement' : 'transaksi'}`; const form = document.getElementById('edit-form'); form.innerHTML = `${editFields(type, item, data)}<button class="primary-btn full" type="submit">Simpan perubahan</button>`; form.onsubmit = async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(form)); if (type === 'cash' || type === 'reimbursement') values.jumlah = Number(values.jumlah); const table = type === 'employee' ? 'karyawan' : type === 'category' ? 'kategori_pengeluaran' : type === 'reimbursement' ? 'reimbursement' : 'kas_kecil'; try { await updateSupabase(table, idColumn, id, values); Object.assign(item, values); saveData(data); renderAll(); closeModals(); notify('Perubahan berhasil disimpan.'); } catch (error) { notify(`Gagal mengubah data: ${error.message}`, true); } }; openModal('edit-modal'); }
-async function removeRecord(type, id) { const data = getData(); const collection = type === 'employee' ? data.employees : type === 'category' ? data.categories : type === 'reimbursement' ? data.reimbursements : data.transactions; const idColumn = type === 'employee' ? 'id_karyawan' : type === 'category' ? 'id_kategori' : type === 'reimbursement' ? 'id_reimbursement' : 'id_kas'; if (!confirm('Hapus data ini? Tindakan ini tidak dapat dibatalkan.')) return; try { await deleteFromSupabase(type === 'employee' ? 'karyawan' : type === 'category' ? 'kategori_pengeluaran' : type === 'reimbursement' ? 'reimbursement' : 'kas_kecil', idColumn, id); const index = collection.findIndex(row => row[idColumn] === id); if (index >= 0) collection.splice(index, 1); saveData(data); renderAll(); notify('Data berhasil dihapus.'); } catch (error) { notify(`Gagal menghapus data: ${error.message}`, true); } }
+async function removeRecord(type, id) {
+  const data = getData();
+  const collection = type === 'employee' ? data.employees : type === 'category' ? data.categories : type === 'reimbursement' ? data.reimbursements : data.transactions;
+  const idColumn = type === 'employee' ? 'id_karyawan' : type === 'category' ? 'id_kategori' : type === 'reimbursement' ? 'id_reimbursement' : 'id_kas';
+  const item = collection.find(row => row[idColumn] === id);
+  if (!item) return;
 
-async function handleReimbursementAction(action, id) { const data = getData(); const item = data.reimbursements.find(row => row.id_reimbursement === id); if (!item) return; if (action === 'verify') item.status = 'Menunggu Persetujuan'; if (action === 'reject') item.status = 'Ditolak'; if (action === 'approve') item.status = 'Disetujui'; if (action === 'approve' || action === 'reject') await syncToSupabase('approval', { id_reimbursement: id, keputusan: action === 'approve' ? 'Disetujui' : 'Ditolak', catatan: action === 'approve' ? 'Disetujui manager' : 'Pengajuan ditolak' }); if (action === 'pay') { if (item.status !== 'Disetujui') return notify('Reimbursement belum disetujui.', true); item.status = 'Sudah Dibayar'; data.payments.push({ id_pembayaran: uid('pay'), id_reimbursement: item.id_reimbursement, tanggal_pembayaran: today, jumlah_dibayar: Number(item.jumlah), metode_pembayaran: 'Tunai', keterangan: 'Pembayaran reimbursement' }); data.transactions.unshift({ id_kas: uid('cash'), id_kategori: item.id_kategori, id_reimbursement: item.id_reimbursement, tanggal_transaksi: today, jenis_transaksi: 'Pengeluaran', uraian: `Pembayaran reimbursement - ${item.uraian_pengeluaran}`, jumlah: Number(item.jumlah) }); await syncToSupabase('pembayaran', { id_reimbursement: id, tanggal_pembayaran: today, jumlah_dibayar: Number(item.jumlah), metode_pembayaran: 'Tunai', keterangan: 'Pembayaran reimbursement' }); await syncToSupabase('kas_kecil', { id_kategori: item.id_kategori, id_reimbursement: id, tanggal_transaksi: today, jenis_transaksi: 'Pengeluaran', uraian: `Pembayaran reimbursement - ${item.uraian_pengeluaran}`, jumlah: Number(item.jumlah) }); }
-  try { await updateSupabase('reimbursement', 'id_reimbursement', id, { status: item.status }); saveData(data); renderAll(); notify(action === 'pay' ? 'Reimbursement dibayar dan masuk ke kas kecil.' : 'Status reimbursement berhasil diperbarui.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); }
+  const reimbursementId = type === 'cash' ? item.id_reimbursement : type === 'reimbursement' ? id : null;
+  const confirmMessage = reimbursementId
+    ? 'Transaksi ini terkait reimbursement. Hapus juga transaksi kas terkait, pembayaran, approval, dan pengajuan reimbursement?'
+    : 'Hapus data ini? Tindakan ini tidak dapat dibatalkan.';
+  if (!confirm(confirmMessage)) return;
+
+  try {
+    if (reimbursementId) {
+      await deleteFromSupabase('kas_kecil', 'id_reimbursement', reimbursementId);
+      await deleteFromSupabase('pembayaran', 'id_reimbursement', reimbursementId);
+      await deleteFromSupabase('approval', 'id_reimbursement', reimbursementId);
+      await deleteFromSupabase('reimbursement', 'id_reimbursement', reimbursementId);
+      data.transactions = data.transactions.filter(row => row.id_reimbursement !== reimbursementId);
+      data.payments = data.payments.filter(row => row.id_reimbursement !== reimbursementId);
+      data.approvals = (data.approvals || []).filter(row => row.id_reimbursement !== reimbursementId);
+      data.reimbursements = data.reimbursements.filter(row => row.id_reimbursement !== reimbursementId);
+    } else {
+      await deleteFromSupabase(type === 'employee' ? 'karyawan' : type === 'category' ? 'kategori_pengeluaran' : 'kas_kecil', idColumn, id);
+      const index = collection.findIndex(row => row[idColumn] === id);
+      if (index >= 0) collection.splice(index, 1);
+    }
+    saveData(data);
+    renderAll();
+    notify(reimbursementId ? 'Transaksi dan seluruh data reimbursement terkait berhasil dihapus.' : 'Data berhasil dihapus.');
+  } catch (error) {
+    notify(`Gagal menghapus data: ${error.message}`, true);
+  }
+}
+
+async function handleReimbursementAction(action, id) {
+  const data = getData();
+  const item = data.reimbursements.find(row => row.id_reimbursement === id);
+  if (!item) return;
+  if (action === 'pay' && item.status !== 'Disetujui') return notify('Reimbursement belum disetujui.', true);
+  const previousStatus = item.status;
+  const nextStatus = { verify: 'Menunggu Persetujuan', approve: 'Disetujui', reject: 'Ditolak', pay: 'Sudah Dibayar' }[action];
+  if (!nextStatus) return;
+
+  try {
+    if (action === 'approve' || action === 'reject') {
+      const approval = await syncToSupabase('approval', { id_reimbursement: id, id_user: currentUserId(data), keputusan: action === 'approve' ? 'Disetujui' : 'Ditolak', catatan: action === 'approve' ? 'Disetujui manager' : 'Pengajuan ditolak' });
+      if (approval) data.approvals.push(approval);
+    }
+    if (action === 'pay') {
+      const payment = await syncToSupabase('pembayaran', { id_reimbursement: id, id_user: currentUserId(data), tanggal_pembayaran: today, jumlah_dibayar: Number(item.jumlah), metode_pembayaran: 'Tunai', keterangan: 'Pembayaran reimbursement' });
+      const transaction = await syncToSupabase('kas_kecil', { id_kategori: item.id_kategori, id_reimbursement: id, id_user: currentUserId(data), tanggal_transaksi: today, jenis_transaksi: 'Pengeluaran', uraian: `Pembayaran reimbursement - ${item.uraian_pengeluaran}`, jumlah: Number(item.jumlah) });
+      data.payments.push(payment || { id_pembayaran: uid('pay'), id_reimbursement: id, tanggal_pembayaran: today, jumlah_dibayar: Number(item.jumlah), metode_pembayaran: 'Tunai', keterangan: 'Pembayaran reimbursement' });
+      data.transactions.unshift(transaction || { id_kas: uid('cash'), id_kategori: item.id_kategori, id_reimbursement: id, tanggal_transaksi: today, jenis_transaksi: 'Pengeluaran', uraian: `Pembayaran reimbursement - ${item.uraian_pengeluaran}`, jumlah: Number(item.jumlah) });
+    }
+    await updateSupabase('reimbursement', 'id_reimbursement', id, { status: nextStatus });
+    item.status = nextStatus;
+    saveData(data);
+    renderAll();
+    notify(action === 'pay' ? 'Reimbursement dibayar dan masuk ke kas kecil.' : 'Status reimbursement berhasil diperbarui.');
+  } catch (error) {
+    item.status = previousStatus;
+    notify(`Gagal tersimpan: ${error.message}`, true);
+  }
 }
 
 function initForms() {
   document.getElementById('employee-form').addEventListener('submit', async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const data = getData(); try { const remote = await syncToSupabase('karyawan', values); data.employees.push(remote || { id_karyawan: uid('emp'), ...values }); saveData(data); renderAll(); closeModals(); event.target.reset(); notify('Karyawan berhasil ditambahkan.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); } });
   document.getElementById('category-form').addEventListener('submit', async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const data = getData(); try { const remote = await syncToSupabase('kategori_pengeluaran', values); data.categories.push(remote || { id_kategori: uid('cat'), ...values }); saveData(data); renderAll(); closeModals(); event.target.reset(); notify('Kategori berhasil ditambahkan.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); } });
   document.getElementById('reimbursement-form').addEventListener('submit', async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const data = getData(); const item = { ...values, jumlah: Number(values.jumlah), tanggal_pengajuan: today, status: 'Menunggu Verifikasi' }; try { const remote = await syncToSupabase('reimbursement', item); data.reimbursements.unshift(remote || { id_reimbursement: uid('reim'), ...item }); saveData(data); renderAll(); closeModals(); event.target.reset(); notify('Pengajuan reimbursement berhasil dibuat.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); } });
-  document.getElementById('cash-form').addEventListener('submit', async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const data = getData(); const item = { ...values, jumlah: Number(values.jumlah), tanggal_transaksi: values.tanggal_transaksi }; try { const remote = await syncToSupabase('kas_kecil', item); data.transactions.unshift(remote || { id_kas: uid('cash'), ...item }); saveData(data); renderAll(); closeModals(); event.target.reset(); notify('Transaksi kas kecil berhasil dicatat.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); } });
+  document.getElementById('cash-form').addEventListener('submit', async event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target)); const data = getData(); const item = { ...values, id_user: currentUserId(data), jumlah: Number(values.jumlah), tanggal_transaksi: values.tanggal_transaksi }; try { const remote = await syncToSupabase('kas_kecil', item); data.transactions.unshift(remote || { id_kas: uid('cash'), ...item }); saveData(data); renderAll(); closeModals(); event.target.reset(); notify('Transaksi kas kecil berhasil dicatat.'); } catch (error) { notify(`Gagal tersimpan: ${error.message}`, true); } });
 }
 
 function initEvents() {
